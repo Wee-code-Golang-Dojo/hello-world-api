@@ -5,12 +5,16 @@ import (
 	"os"
 )
 
+
 type User struct {
 	Name string `json:"name"`
 	Age int `json:"age"`
 	Email string `json:"email"`
 	BloodType string `json:"blood_type"`
 }
+
+// create a empty users array
+var Users []User
 
 func main() {
 	// create a new gin router
@@ -52,11 +56,11 @@ func helloWorldhandler(c *gin.Context) {
 }
 
 func createUserHandler(c *gin.Context) {
-	//create user
-	//......
+	// create an empty user object
 	var user User
-	//user := User{}
 
+	// gets the user data that was sent from the client
+	// fills up our empty user object with the sent data
 	err := c.ShouldBindJSON(&user)
 	if err != nil {
 		c.JSON(400, gin.H{
@@ -65,7 +69,8 @@ func createUserHandler(c *gin.Context) {
 		return
 	}
 
-	// save user somewhere ...
+	// add single user to the list of users
+	Users = append(Users, user)
 
 	c.JSON(200, gin.H{
 		"message": "succesfully created user",
@@ -88,7 +93,8 @@ func getSingleUserHandler(c *gin.Context) {
 
 func getAllUserHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"message": "hello world",
+		"message": "success",
+		"data": Users,
 	})
 }
 
