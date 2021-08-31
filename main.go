@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"os"
 )
 
 func main() {
@@ -15,7 +16,11 @@ func main() {
 	router.GET("/", saveUser)
 
 	// run the server on the port 3000
-	_ = router.Run(":3000")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	_ = router.Run(":"+ port)
 }
 
 func helloWorldhandler(c *gin.Context) {
