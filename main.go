@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"os"
 )
@@ -29,7 +30,8 @@ func main() {
 	router.POST("/createUser", createUserHandler)
 
 	// retrieve
-	router.GET("/getUser", getSingleUserHandler)
+	// name is a placeholder to represent data the users send
+	router.GET("/getUser/:name", getSingleUserHandler)
 
 	router.GET("/getUsers", getAllUserHandler)
 
@@ -79,14 +81,42 @@ func createUserHandler(c *gin.Context) {
 }
 
 func getSingleUserHandler(c *gin.Context) {
+	// get the value passed from the client
+	name := c.Param("name")
+
+	fmt.Println("name", name)
+
+	// create an empty user
 	var user User
-	user = User{
-		Name: "victor",
-		Age: 1243,
-		Email: "my@email.com",
+	// initialize a boolean variable as false
+	userAvailable := false
+
+	// loop through the users array to find a match
+	for _, value := range Users {
+
+		// check the current iteration of users
+		// check if the name matches the client request
+		if value.Name == name {
+			// if it matches assign the value to the empty user object we created
+			user = value
+
+			// set user available boolean to true since there was a match
+			userAvailable = true
+		}
 	}
+
+	// if no match was found
+	// the userAvailable would still be false, if so return a not found error
+	// check if user is empty, if so return a not found error
+	if !userAvailable {
+		c.JSON(404, gin.H{
+			"error": "no user with name found: " + name,
+		})
+		return
+	}
+
 	c.JSON(200, gin.H{
-		"message": "hello world",
+		"message": "success",
 		"data": user,
 	})
 }
