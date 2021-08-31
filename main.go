@@ -13,7 +13,7 @@ func main() {
 	router.GET("/", helloWorldhandler)
 
 	// define a single endpoint
-	router.GET("/", saveUser)
+	router.GET("/user", saveUser)
 
 	// run the server on the port 3000
 	port := os.Getenv("PORT")
