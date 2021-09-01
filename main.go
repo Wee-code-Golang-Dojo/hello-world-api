@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"log"
 	"os"
+	"time"
 )
 
 
@@ -14,10 +20,30 @@ type User struct {
 	BloodType string `json:"blood_type"`
 }
 
-// create a empty users array
 var Users []User
 
+var dbClient *mongo.Client
+
 func main() {
+	// connect to the database
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// we are trying to connect to mongodb on a specified URL - mongodb://localhost:27017
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	if err != nil {
+		// if there was an error connecting
+		// print out the error and exit using log.Fatal()
+		log.Fatalf("Could not connect to the db: %v\n", err)
+	}
+
+	dbClient = client
+	err = dbClient.Ping(ctx, readpref.Primary())
+	if err != nil {
+		// if there was an issue with the pin
+		// print out the error and exit using log.Fatal()
+		log.Fatalf("MOngo db not available: %v\n", err)
+	}
+
 	// create a new gin router
 	router := gin.Default()
 
@@ -51,6 +77,8 @@ func main() {
 	_ = router.Run(":"+ port)
 }
 
+
+
 func helloWorldhandler(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"message": "hello world",
@@ -71,9 +99,20 @@ func createUserHandler(c *gin.Context) {
 		return
 	}
 
-	// add single user to the list of users
-	Users = append(Users, user)
+	//// add single user to the list of users
+	//Users = append(Users, user)
 
+	// using the dbclient we created above
+	// specify the dbname and the collection name we want to add data to using the InsertOne method.
+	_, err = dbClient.Database("usersdb").Collection("users").InsertOne(context.Background(), user)
+	if err != nil {
+		fmt.Println("error saving user", err)
+	//	if saving ws not successful
+		c.JSON(500, gin.H{
+			"error": "Could not process request, could not save user",
+		})
+		return
+	}
 	c.JSON(200, gin.H{
 		"message": "succesfully created user",
 		"data": user,
