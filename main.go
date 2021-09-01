@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -62,10 +63,10 @@ func main() {
 	router.GET("/getUsers", getAllUserHandler)
 
 	// update
-	router.PATCH("/updateUser", updateUserHandler)
+	router.PATCH("/updateUser/:name", updateUserHandler)
 
 	// delete
-	router.DELETE("/deleteUser", helloWorldhandler)
+	router.DELETE("/deleteUser/:name", deleteUserHandler)
 
 
 
@@ -123,31 +124,18 @@ func getSingleUserHandler(c *gin.Context) {
 	// get the value passed from the client
 	name := c.Param("name")
 
-	fmt.Println("name", name)
-
 	// create an empty user
 	var user User
-	// initialize a boolean variable as false
-	userAvailable := false
-
-	// loop through the users array to find a match
-	for _, value := range Users {
-
-		// check the current iteration of users
-		// check if the name matches the client request
-		if value.Name == name {
-			// if it matches assign the value to the empty user object we created
-			user = value
-
-			// set user available boolean to true since there was a match
-			userAvailable = true
-		}
+	query := bson.M{
+		"name": name,
 	}
+	err := dbClient.Database("usersdb").Collection("users").FindOne(context.Background(), query).Decode(&user)
 
 	// if no match was found
-	// the userAvailable would still be false, if so return a not found error
-	// check if user is empty, if so return a not found error
-	if !userAvailable {
+	// err would not be nil
+	// so we return a user not found error
+	if err != nil {
+		fmt.Println("user not found", err)
 		c.JSON(404, gin.H{
 			"error": "no user with name found: " + name,
 		})
@@ -161,19 +149,86 @@ func getSingleUserHandler(c *gin.Context) {
 }
 
 func getAllUserHandler(c *gin.Context) {
+	// create an empty array of users to store the result
+	var users []User
+
+	cursor, err := dbClient.Database("usersdb").Collection("users").Find(context.Background(), bson.M{})
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error": "Could not process request, could get users",
+		})
+		return
+	}
+
+	err = cursor.All(context.Background(), &users)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error": "Could not process request, could get users",
+		})
+		return
+	}
+
 	c.JSON(200, gin.H{
 		"message": "success",
-		"data": Users,
+		"data": users,
 	})
 }
 
 func updateUserHandler(c *gin.Context) {
+	// get the value passed from the client
+	name := c.Param("name")
+
+	// creating an empty object to store request data
+	var user User
+
+	// gets the user data that was sent from the client
+	// fills up our empty user object with the sent data
+	err := c.ShouldBindJSON(&user)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"error": "invalid request data",
+		})
+		return
+	}
+	filterQuery := bson.M{
+		"name": name,
+	}
+
+	updateQuery := bson.M{
+		"$set": bson.M{
+			"name": user.Name,
+			"age": user.Age,
+			"email": user.Email,
+		},
+	}
+
+	_, err = dbClient.Database("usersdb").Collection("users").UpdateOne(context.Background(), filterQuery, updateQuery)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error": "Could not process request, could not update user",
+		})
+		return
+	}
+
 	c.JSON(200, gin.H{
 		"message": "User updated!",
 	})
 }
 
 func deleteUserHandler(c *gin.Context) {
+	// get the value passed from the client
+	name := c.Param("name")
+
+	query := bson.M{
+		"name": name,
+	}
+	_, err := dbClient.Database("usersdb").Collection("users").DeleteOne(context.Background(), query)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error": "Could not process request, could not delete user",
+		})
+		return
+	}
 	c.JSON(200, gin.H{
 		"message": "user deleted!",
 	})
